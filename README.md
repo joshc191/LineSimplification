@@ -10,4 +10,5 @@ This repo contains a single page website, which contains a webmap. This project 
 
 ## Contents
 index.html - Main file for the website.
+
 styles.css - Styles to add icons to 'Simplify Line' and 'Clear Line' buttons.
