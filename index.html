@@ -26,8 +26,6 @@
         zoom: 12 // starting zoom
       });
 
-      // Add zoom and rotation controls to the map.
-      map.addControl(new mapboxgl.NavigationControl());
 
       // Initialize linestring if it doesn't exist yet
       if (typeof line1 == 'undefined')  {
@@ -126,6 +124,8 @@
       map.addControl(simplifyControl, "top-right");
       map.addControl(clearLineControl, "top-right");
 
+
+      map.addControl(new mapboxgl.NavigationControl());   // Add zoom and rotation controls to the map.
     </script>
   </body>
 </html>
