@@ -5,5 +5,5 @@ This repo contains a single page website, which contains a webmap. This project 
 
 ## Functionality
 - Polylines can be drawn on the webmap by marking points on the map.
-- Existing polylines can be simplified. The simplification is done using Turf.js's 'simplify' function
-- Polylines can be cleared from the map.
+- Existing polylines can be simplified by pressing the 'Simplify Line' button. The simplification is done using Turf.js's ['Simplify'](https://turfjs.org/docs/#simplify) function
+- Polylines can be cleared from the map by pressing the 'Clear Line' button.
