@@ -7,13 +7,15 @@
       <link href='https://api.mapbox.com/mapbox-gl-js/v2.1.1/mapbox-gl.css' rel='stylesheet' />
       <script src='https://api.mapbox.com/mapbox-gl-js/v2.1.1/mapbox-gl.js'></script>
       <script src='https://api.mapbox.com/mapbox.js/plugins/turf/v3.0.11/turf.min.js'></script>
+      <!-- Add stylesheet for control button icons -->
+      <link rel="stylesheet" href="styles.css">
   </head>
   <body>
     <h1>Line Simplification Demo</h1>
     <!-- Create section for map -->
     <div id="mapid" style="width: 1000px; height: 600px; position: relative;" ></div> <br>
     <h2>About</h2>
-    <p>Demonstration of line simplifcation. Draw a polyline on the map and press submit to simplify it.</p>
+    <p>Demonstration of line simplifcation. Click anywhere on the map to define a point on the polyline. Press Simplify to simplify it. Press Clear to clear it.</p>
 
     <script>
       mapboxgl.accessToken = 'pk.eyJ1Ijoiam9zaGMxOTEiLCJhIjoiY2ttNXNtcXBoMGhhajJucHIzazlyaTdqZyJ9.Jbdqu_PcXM3CdFB2PLFXDQ';
@@ -24,98 +26,104 @@
         zoom: 12 // starting zoom
       });
 
-      // Add clinics and schools layers to map
-      map.on('load', function() {
-        map.addLayer({
-          id: 'hospitals',
-          type: 'symbol',
-          source: {
-            type: 'geojson',
-            data: map_data[0]
-          },
-          layout: {
-            'icon-image': 'hospital-15',
-            'icon-allow-overlap': true
-          },
-          paint: { }
+      // Add zoom and rotation controls to the map.
+      map.addControl(new mapboxgl.NavigationControl());
+
+      // Initialize linestring if it doesn't exist yet
+      if (typeof line1 == 'undefined')  {
+        var line1 = {
+          'type': 'Feature',
+          'properties': {},
+          'geometry': {
+            'type': 'LineString',
+            'coordinates': []
+          }
+        };
+      }
+
+      map.on('load', function() {   // Upon loading the map...
+        map.addSource('line1', {    // Create a source for the linestring
+          'type': 'geojson',
+          'data': line1
         });
-        map.addLayer({
-          id: 'schools',
-          type: 'symbol',
-          source: {
-            type: 'geojson',
-            data: map_data[1]
-          },
+        map.addLayer({  // Add source to layer
+          id: 'line',
+          type: 'line',
+          source: 'line1',
           layout: {
-            'icon-image': 'school-15'
+            'line-join': 'round',
+            'line-cap': 'round'
           },
-          paint: { }
+          paint: {
+            'line-color': '#888',
+            'line-width': 8
+          }
         });
       });
 
-      // Add popups
-      var popup = new mapboxgl.Popup();
-
-      map.on('mousemove', function(e) {
-        var features = map.queryRenderedFeatures(e.point, { layers: ['schools', 'hospitals'] });
-
-        if (!features.length) {
-          popup.remove();
-          return;
-        }
-        var feature = features[0];
-
-        popup.setLngLat(feature.geometry.coordinates)
-          .setHTML(feature.properties.name)
-          .addTo(map);
-
-        map.getCanvas().style.cursor = features.length ? 'pointer' : '';
+      map.on('click', function(e) {   // When a user clicks on the map
+        let pt = e.lngLat;
+        line1.geometry.coordinates.push([pt.lng, pt.lat]);  // Add clicked point to linestring
+        map.getSource('line1').setData(line1);  // Update source
       });
 
-      // Create source for nearest hospital
-      map.addSource('nearest-hospital', {
-        type: 'geojson',
-        data: {
-          type: 'FeatureCollection',
-          features: [
-          ]
+      // Create class for button controls
+      class MapboxButtonControl {
+        constructor({
+          className = "",
+          title = "",
+          eventHandler = evtHndlr
+        }) {
+          this._className = className;
+          this._title = title;
+          this._eventHandler = eventHandler;
         }
-      });
 
-      map.on('click', function(e) {
-        // Return any features from the 'school' layer whenever the map is clicked
-        var schoolFeatures = map.queryRenderedFeatures(e.point, { layers: ['schools'] });
-        if (!schoolFeatures.length) {
-          return;
+        onAdd(map)  {
+          this._btn = document.createElement("button");
+          this._btn.className = "mapboxgl-ctrl-icon" + " " + this._className;
+          this._btn.type = "button";
+          this._btn.title = this._title;
+          this._btn.onclick = this._eventHandler;
+
+          this._container = document.createElement("div");
+          this._container.className = "mapboxgl-ctrl-group mapboxgl-ctrl";
+          this._container.appendChild(this._btn);
+
+          return this._container;
         }
-        var schoolFeature = schoolFeatures[0];
 
-        // Using Turf, find the nearest hospital to library clicked
-        var nearestHospital = turf.nearest(schoolFeature, map_data[0]);
+        onRemove() {
+          this._container.parentNode.removeChild(this._container);
+          this._map = undefined;
+        }
+      }
 
-        // If a nearest library is found
-        if (nearestHospital !== null) {
-          // Update the 'nearest-library' data source to include
-          // the nearest library
-          map.getSource('nearest-hospital').setData({
-            type: 'FeatureCollection',
-            features: [
-              nearestHospital
-            ]
-          });
-          // Create a new circle layer from the 'nearest-library' data source
-          map.addLayer({
-            id: 'nearest-hospital',
-            type: 'circle',
-            source: 'nearest-hospital',
-            paint: {
-              'circle-radius': 12,
-              'circle-color': '#486DE0'
-            }
-          }, 'hospitals');
+      // Create simplify control
+      const simplifyControl = new MapboxButtonControl({
+        className: "mapbox-gl-simplify_line",
+        title: "Simplify Line",
+        eventHandler: function() {  // Define event when simplify button is pressed
+          if (line1.geometry.coordinates !== []) {  // If the line has coordinates
+            line1 = turf.simplify(line1);   // Simplify the line using default settings (tolerance == 1, highQuality == false, mutate == false)
+            map.getSource('line1').setData(line1);  // Update source
+          }
         }
       });
 
+      // Create clear line control
+      const clearLineControl = new MapboxButtonControl({
+        className: "mapbox-gl-clear_line",
+        title: "Clear Line",
+        eventHandler: function() {  // Define event when clear button is pressed
+          line1.geometry.coordinates = [];  // Clear/erase the line
+          map.getSource('line1').setData(line1);  // Update source
+        }
+      });
+
+      // Add controls to the map
+      map.addControl(simplifyControl, "top-right");
+      map.addControl(clearLineControl, "top-right");
 
     </script>
   </body>
